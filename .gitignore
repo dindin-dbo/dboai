@@ -1,0 +1,17 @@
+# Mengabaikan file konfigurasi rahasia
+.env
+*.pem
+
+# Mengabaikan folder dependency pihak ketiga
+node_modules/
+vendor/
+.venv/
+
+# Mengabaikan folder hasil build aplikasi
+dist/
+build/
+*.log
+
+# Mengabaikan file bawaan sistem operasi (Mac/Windows)
+.DS_Store
+Thumbs.db
