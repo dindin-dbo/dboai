@@ -98,7 +98,12 @@ export async function subtaskCommand(options) {
       sp.succeed(`${chalk.green(result.key)} — ${task.summary} ${chalk.dim(`[${task.points} SP]`)}`);
     } catch (err) {
       sp.fail(`Failed: ${task.summary}`);
-      console.error(chalk.red(`  → ${err.response?.data?.errorMessages?.join(', ') || err.message}`));
+      const data = err.response?.data;
+      const messages = [
+        ...(data?.errorMessages || []),
+        ...(data?.errors ? Object.entries(data.errors).map(([k, v]) => `${k}: ${v}`) : []),
+      ];
+      console.error(chalk.red(`  → ${messages.join(', ') || err.message}`));
     }
   }
 

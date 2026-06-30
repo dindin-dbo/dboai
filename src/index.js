@@ -13,6 +13,7 @@ program
   .command('setup')
   .description('Configure AI provider, API keys, and Jira credentials')
   .option('--provider', 'Change AI provider only')
+  .option('--jira', 'Change Jira credentials only')
   .action(setupCommand);
 
 program

@@ -41,6 +41,28 @@ const PROVIDERS = {
     baseURL: 'https://api.mistral.ai/v1',
     models: ['mistral-large-latest', 'mistral-medium-latest', 'codestral-latest'],
   },
+  iyh: {
+    name: 'IYH (custom)',
+    baseURL: 'https://v1.iyhapi.app',
+    models: [
+      'claude-opus-4.8',
+      'claude-opus-4.7',
+      'claude-opus-4.6',
+      'claude-opus-4-8',
+      'claude-sonnet-4.6',
+      'claude-sonnet-4.5',
+      'claude-haiku-4.5',
+      'gpt-5.5-xhigh',
+      'gpt-5.5-high',
+      'gpt-5.4-xhigh',
+      'gpt-5.4-high',
+      'gpt-5.3-codex-xhigh',
+      'gpt-5.3-codex-high',
+      'gemini-3.5-flash-low',
+      'gemini-3.1-pro-low',
+      'gemini-3-flash',
+    ],
+  },
 };
 
 export function getProviderList() {

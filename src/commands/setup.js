@@ -4,10 +4,56 @@ import fs from 'fs';
 import { loadConfig, saveConfig, RULE_PLAN_FILE } from '../utils/config.js';
 import { getProviderList, getModelsForProvider } from '../providers/ai.js';
 
-export async function setupCommand(options) {
-  console.log(chalk.cyan.bold('\n🔧 dboai setup\n'));
+async function promptJiraConfig(existing) {
+  console.log(chalk.cyan('\n📋 Jira Configuration\n'));
+  return inquirer.prompt([
+    {
+      type: 'input',
+      name: 'jira_url',
+      message: 'Jira URL (e.g. https://dbo-id.atlassian.net):',
+      default: existing.jira_url,
+    },
+    {
+      type: 'input',
+      name: 'jira_email',
+      message: 'Jira email:',
+      default: existing.jira_email,
+    },
+    {
+      type: 'password',
+      name: 'jira_api_token',
+      message: 'Jira API token:',
+      default: existing.jira_api_token ? '(keep existing)' : undefined,
+      filter: (val) => (val === '(keep existing)' ? existing.jira_api_token : val),
+    },
+    {
+      type: 'input',
+      name: 'jira_default_project',
+      message: 'Default Jira project key (e.g. EX):',
+      default: existing.jira_default_project,
+    },
+    {
+      type: 'input',
+      name: 'jira_account_id',
+      message: 'Your Jira accountId (for auto-assign subtasks, optional):',
+      default: existing.jira_account_id,
+    },
+  ]);
+}
 
+export async function setupCommand(options) {
   const existing = loadConfig() || {};
+
+  // --jira: only update Jira config
+  if (options?.jira) {
+    console.log(chalk.cyan.bold('\n🔧 dboai setup --jira\n'));
+    const jiraAnswers = await promptJiraConfig(existing);
+    saveConfig({ ...existing, ...jiraAnswers });
+    console.log(chalk.green('\n✅ Jira config updated!\n'));
+    return;
+  }
+
+  console.log(chalk.cyan.bold('\n🔧 dboai setup\n'));
 
   // AI Provider
   const providerList = getProviderList();
@@ -57,35 +103,8 @@ export async function setupCommand(options) {
     return;
   }
 
-  // Jira config
-  console.log(chalk.cyan('\n📋 Jira Configuration\n'));
-  const jiraAnswers = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'jira_url',
-      message: 'Jira URL (e.g. https://yourcompany.atlassian.net):',
-      default: existing.jira_url,
-    },
-    {
-      type: 'input',
-      name: 'jira_email',
-      message: 'Jira email:',
-      default: existing.jira_email,
-    },
-    {
-      type: 'password',
-      name: 'jira_api_token',
-      message: 'Jira API token:',
-      default: existing.jira_api_token ? '(keep existing)' : undefined,
-      filter: (val) => (val === '(keep existing)' ? existing.jira_api_token : val),
-    },
-    {
-      type: 'input',
-      name: 'jira_default_project',
-      message: 'Default Jira project key (e.g. PROJ):',
-      default: existing.jira_default_project,
-    },
-  ]);
+  // Full setup: also configure Jira
+  const jiraAnswers = await promptJiraConfig(existing);
 
   const config = {
     ai_provider: provider,

@@ -9,19 +9,21 @@ export async function getIssue(config, issueKey) {
 }
 
 export async function createSubtask(config, parentKey, projectKey, summary, storyPoints) {
-  const { jira_url, jira_email, jira_api_token } = config;
+  const { jira_url, jira_email, jira_api_token, jira_account_id } = config;
 
-  const body = {
-    fields: {
-      project: { key: projectKey },
-      parent: { key: parentKey },
-      summary,
-      issuetype: { name: 'Subtask' },
-      story_points: storyPoints,
-      // Common story point field - users may need to adjust
-      customfield_10016: storyPoints,
-    },
+  const fields = {
+    project: { key: projectKey },
+    parent: { key: parentKey },
+    summary,
+    issuetype: { name: 'Sub-task' },
+    customfield_10226: storyPoints,
   };
+
+  if (jira_account_id) {
+    fields.assignee = { accountId: jira_account_id };
+  }
+
+  const body = { fields };
 
   const res = await axios.post(`${jira_url}/rest/api/3/issue`, body, {
     auth: { username: jira_email, password: jira_api_token },
