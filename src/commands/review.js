@@ -1,33 +1,50 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { loadConfig, loadRulePlan, RULE_PLAN_FILE } from '../utils/config.js';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { execSync } from 'child_process';
+import { loadConfig } from '../utils/config.js';
 import { getStagedDiff, isGitRepo } from '../utils/git.js';
 import { callAI } from '../providers/ai.js';
+import { readRule, ruleExists, listRules, getDefaultRuleName, RULES_DIR } from '../utils/rules.js';
 
-const BASE_SYSTEM_PROMPT = `You are a senior code reviewer. Review the provided git diff based on the given code review rules.
+const WRAPPER_INSTRUCTION = `You are a senior code reviewer. Below is a code review rule document. It defines its own rules, checklist, and required output format.
 
-Output format (use exactly this structure):
-## Summary
-One sentence overall assessment.
+Follow the rule document's instructions EXACTLY as written, including:
+- The exact output structure/format it specifies
+- The language it requires for findings (e.g. Bahasa Indonesia if specified)
+- Any required tagging, severity levels, or report structure described in the document
 
-## Findings
+Do not invent your own output format. Use only what the rule document defines.`;
 
-### 🔴 Critical
-- file.ts:42 — description of issue
+function hasGlow() {
+  try {
+    execSync('which glow', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-### 🟡 Warning  
-- file.ts:10 — description of issue
+function renderOutput(result) {
+  if (hasGlow()) {
+    const tmpFile = path.join(os.tmpdir(), `dboai-review-${Date.now()}.md`);
+    fs.writeFileSync(tmpFile, result);
+    try {
+      execSync(`glow "${tmpFile}"`, { stdio: 'inherit' });
+    } finally {
+      fs.unlinkSync(tmpFile);
+    }
+  } else {
+    console.log(chalk.dim('─'.repeat(60)));
+    console.log(result);
+    console.log(chalk.dim('─'.repeat(60)));
+    console.log(chalk.dim('\n💡 Tip: install `glow` for nicer markdown rendering → brew install glow\n'));
+  }
+}
 
-### 🟢 Suggestion
-- file.ts:5 — description of issue
-
-## Verdict
-PASS / PASS WITH NOTES / NEEDS REVISION
-
-If no issues in a severity level, omit that section.
-Be concise. Focus on real problems, not style nitpicks unless rules specify.`;
-
-export async function reviewCommand() {
+export async function reviewCommand(name) {
   const config = loadConfig();
   if (!config) {
     console.log(chalk.red('❌ Run `dboai setup` first.'));
@@ -44,47 +61,37 @@ export async function reviewCommand() {
     process.exit(1);
   }
 
-  const rulePlan = loadRulePlan();
-  if (!rulePlan) {
-    console.log(chalk.yellow(`⚠️  No rule plan found at: ${RULE_PLAN_FILE}`));
-    console.log(chalk.yellow('   Proceeding with default review rules...\n'));
+  const ruleName = name || getDefaultRuleName();
+
+  if (!ruleName) {
+    console.log(chalk.red(`❌ No rule plans found in ${RULES_DIR}`));
+    console.log(chalk.yellow('   Create one with: dboai rules add <name>'));
+    process.exit(1);
+  }
+  if (!ruleExists(ruleName)) {
+    console.log(chalk.red(`❌ Rule "${ruleName}" not found.`));
+    const available = listRules();
+    if (available.length > 0) {
+      console.log(chalk.dim(`   Available: ${available.join(', ')}`));
+    } else {
+      console.log(chalk.dim('   No rule plans exist yet. Create one with: dboai rules add <name>'));
+    }
+    process.exit(1);
   }
 
-  const systemPrompt = rulePlan
-    ? `${BASE_SYSTEM_PROMPT}\n\n## Code Review Rules\n${rulePlan}`
-    : BASE_SYSTEM_PROMPT;
+  console.log(chalk.dim(`📄 Rule: ${ruleName}\n`));
 
-  const spinner = ora('Reviewing staged changes...').start();
+  const rulePlanContent = readRule(ruleName);
+  const systemPrompt = `${WRAPPER_INSTRUCTION}\n\n---\n\n${rulePlanContent}`;
+
+  const spinner = ora(`Reviewing staged changes (${ruleName})...`).start();
 
   try {
     const result = await callAI(config, systemPrompt, `Staged diff:\n${diff}`);
     spinner.stop();
 
     console.log(chalk.cyan.bold('\n🔍 Code Review\n'));
-    console.log(chalk.dim('─'.repeat(60)));
-
-    // Colorize output
-    const lines = result.split('\n');
-    for (const line of lines) {
-      if (line.startsWith('## ')) {
-        console.log(chalk.cyan.bold(line));
-      } else if (line.startsWith('### 🔴')) {
-        console.log(chalk.red.bold(line));
-      } else if (line.startsWith('### 🟡')) {
-        console.log(chalk.yellow.bold(line));
-      } else if (line.startsWith('### 🟢')) {
-        console.log(chalk.green.bold(line));
-      } else if (line.includes('NEEDS REVISION')) {
-        console.log(chalk.red.bold(line));
-      } else if (line.includes('PASS WITH NOTES')) {
-        console.log(chalk.yellow.bold(line));
-      } else if (line.includes('PASS') && !line.includes('NOTES') && !line.includes('NEEDS')) {
-        console.log(chalk.green.bold(line));
-      } else {
-        console.log(line);
-      }
-    }
-    console.log(chalk.dim('─'.repeat(60)) + '\n');
+    renderOutput(result);
   } catch (err) {
     spinner.fail('Review failed.');
     console.error(chalk.red(err.message));

@@ -21,8 +21,7 @@ Output format:
   { "summary": "Another subtask", "points": 1 }
 ]`;
 
-export async function subtaskCommand(options) {
-  const { issue } = options;
+export async function subtaskCommand(issue) {
 
   // Validate
   const config = loadConfig();
