@@ -1,6 +1,6 @@
 {
   "name": "dboai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI-powered Git tools: Jira subtask generator & code reviewer",
   "type": "module",
   "bin": {
