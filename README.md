@@ -4,7 +4,17 @@ AI-powered Git CLI tools: auto-generate Jira subtasks & code review from staged 
 
 ## Install
 
+### Via npm (recommended)
+
 ```bash
+npm install -g dboai
+```
+
+### Local development
+
+```bash
+git clone https://github.com/dindin-dbo/dboai.git
+cd dboai
 npm install
 npm link
 ```
